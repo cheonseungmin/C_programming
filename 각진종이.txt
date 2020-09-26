@@ -1,0 +1,145 @@
+#include "opencv_env.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+#define MAX(X,Y) X>=Y? X:Y
+#define PIE 3.141592
+#define Coef 0.66754
+#define NEG(X) (X) < 0 ? -((int)(X-.5)) : ((int)(X+.5))
+typedef unsigned char BYTE;
+#define R2A 180/3.141592
+#define A2R 3.141592/180
+
+void makeLookUp(BYTE LUT [][256]){
+	int x, y;
+
+	for(x=0; x<256; x++){
+		for(y=0; y<256; y++){
+			LUT[x][y] = (BYTE)( atan((y+1.e-6)/(x+1.e-6))*R2A +.5);
+		}
+	}
+}
+
+void sobel(BYTE image[],int row, int col, BYTE norm[], BYTE phase[], BYTE lookUp[][256]){
+	int i,j;
+	BYTE A1, A3, A7, A9;
+	BYTE absx, absy;
+	int gx, gy;
+
+	for(i=1; i<row-1; i++){
+		for(j=1; j<col-1; j++){
+			A1 = image[(i-1)*col + j-1];
+			A3 = image[(i-1)*col + j+1];
+			A7 = image[(i+1)*col + j-1];
+			A9 = image[(i+1)*col + j+1];
+
+			gx = (A3 + 2*image[i*col + j+1] + A9) - (A1 + 2*image[i*col + j-1] + A7);
+			gy = (A7 + 2*image[(i+1)*col + j] + A9) - (A1 + 2*image[(i+1)*col + j] + A3);
+
+			absx = NEG(gx*0.25);
+			absy = NEG(gy*0.25);
+			norm[i*col + j] = (BYTE)((absx + absy)*Coef + .5);
+
+			if ( (gx < 0 && gy > 0) || (gx > 0 && gy < 0) )
+			{
+				phase[i*640 + j] = -lookUp[absx][absy] + 90;
+			}
+			else 
+			{
+				phase[i*640 + j] = lookUp[absx][absy] + 90;
+			}
+
+		}
+	}
+}
+
+
+void NLMS(BYTE* norm, BYTE* phase, BYTE *nlms, int rowSize, int colSize)
+{
+	//nlms는 0으로 모두 초기화 돼었다고 가정
+	int endRow, endCol;
+	endRow = rowSize - 1;
+	endCol = colSize - 1;
+	for (int rdx = 1; rdx < endRow; rdx++)
+	{
+		int p = rdx * colSize + 1;
+		for (int cdx = 1; cdx < endCol; cdx++, p++)
+		{
+			BYTE val = norm[p];
+			double ang = (phase[p] - 90)*A2R;
+			double t = tan(ang);
+			double norm1, norm2;
+			if (t >= 0.0 && t < 1.0)
+			{
+				norm1 = t * norm[p + colSize + 1] + (1.0 - t)*norm[p + 1];
+				norm2 = t * norm[p - colSize - 1] + (1.0 - t)*norm[p - 1];
+			}
+			else if( t >= 1.0 )
+			{
+				t = tan(1.570796327 - ang);
+				norm1 = t * norm[p + colSize + 1] + (1.0 - t)*norm[p + colSize];
+				norm2 = t * norm[p - colSize - 1] + (1.0 - t)*norm[p - colSize];
+			}
+			else if (t >= -1.0 && t < 0.0)
+			{
+				t *= -1.0;
+				norm1 = t * norm[p - colSize + 1] + (1.0 - t)*norm[p + 1];
+				norm2 = t * norm[p + colSize - 1] + (1.0 - t)*norm[p - 1];
+			}
+			else
+			{
+				t = tan(1.570796327 + ang);
+				norm1 = t * norm[p - colSize + 1] + (1.0 - t)*norm[p - colSize];
+				norm2 = t * norm[p + colSize - 1] + (1.0 - t)*norm[p + colSize];
+			}
+
+			if (val >= (BYTE)norm1 && val >= (BYTE)norm2)
+				nlms[p] = val;
+		}
+	}
+}
+
+int main(){
+	int i,j;
+	int row = 480, col = 640, size;
+	double;
+	BYTE *img, *norm, *phase, LUT[256][256], *nlms;
+	FILE *f;
+
+	size = row*col;
+	img = (BYTE*)malloc(sizeof(BYTE)*size);
+	norm = (BYTE*)malloc(sizeof(BYTE)*size);
+	phase = (BYTE*)malloc(sizeof(BYTE)*size);
+	nlms = (BYTE*)malloc(sizeof(BYTE)*size);
+
+	f = fopen("각진종이480640.raw","rb");
+	fread(img,size,1,f);
+
+	makeLookUp(LUT);
+
+	cv::Mat image = cv::Mat(row, col, CV_8U, img);
+	cv::imshow("papper",image);
+
+	sobel(img, row, col, norm, phase, LUT);
+
+	cv::Mat normImg = cv::Mat(row, col, CV_8UC1, norm);
+	cv::imshow("norm",normImg);
+
+	cv::Mat phaseImg = cv::Mat(row, col, CV_8UC1, phase);
+	cv::imshow("phase",phaseImg);
+
+	for(i=0; i<size; i++){
+		nlms[i] = 0;
+	}
+	NLMS(norm, phase, nlms, row, col);
+
+	cv::Mat nlmsImg = cv::Mat(row, col, CV_8UC1, nlms);
+	cv::imshow("nlms",nlmsImg);
+	cv::waitKey();
+
+
+	fclose(f);
+
+
+
+}

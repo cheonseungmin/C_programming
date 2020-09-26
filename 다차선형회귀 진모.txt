@@ -1,0 +1,240 @@
+#include <stdio.h>
+#include <math.h>
+#include <float.h>
+#include <stdlib.h>
+
+void input(double matrix [], double array [], int k){
+	int i, j, tmp =0;
+	for(i=0; i<k+1; i++){
+		for(j=0; j<k+1; j++){
+			matrix[i*(k+1) + j] = array[j + tmp];
+		}
+		tmp++;
+	}
+
+	tmp=0;
+}
+
+int *getpivot(double *matrix, int rowSize, int colSize)
+{
+
+	int* ret = (int*)malloc(sizeof(int) * rowSize);
+	for (int rdx = 0; rdx < rowSize; rdx++)
+	{
+		bool allZero = true;
+		for (int cdx = 0; cdx < colSize; cdx++)
+		{
+			if (!(*(matrix + rdx * colSize + cdx) <= FLT_EPSILON) && allZero == true)
+				allZero = false, ret[rdx] = cdx;
+		}
+		if (allZero == true)
+			ret[rdx] = colSize;
+	}
+	/*
+	printf("lookup\n");
+	for (int rdx = 0; rdx < rowSize; rdx++)
+		printf("%d  : %d\n", rdx + 1, ret[rdx]);
+		*/
+	return ret;
+}
+
+double* inverse(double *matrix, int rowSize, int colSize, int* lookup)
+{
+	double* identity = (double*)malloc(sizeof(double) * rowSize * colSize);
+	for (int rdx = 0; rdx < rowSize; rdx++)
+	{
+		for (int cdx = 0; cdx < colSize; cdx++)
+		{
+			if (rdx == cdx)
+				*(identity + rdx * colSize + cdx) = 1;
+			else
+				*(identity + rdx * colSize + cdx) = 0;
+		}
+	}
+
+	double determinant = 1;
+
+	for (int rdx = 0; rdx < rowSize; rdx++)
+	{
+		if (lookup[rdx] != colSize)
+		{
+			double divide = *(matrix + rdx * colSize + lookup[rdx]);
+			determinant *= divide;
+			for (int cdx = 0; cdx < colSize; cdx++)
+			{
+				*(matrix + rdx * colSize + cdx) /= divide;
+				*(identity + rdx * colSize + cdx) /= divide;
+			}
+			for (int rdx2 = 0; rdx2 < rowSize; rdx2++)
+			{
+				if (rdx2 == rdx)
+					continue;
+				double constantC = *(matrix + rdx2 * colSize + lookup[rdx]);
+				bool detect = false;
+				for (int cdx = 0; cdx < colSize; cdx++)
+				{
+					*(matrix + rdx2 * colSize + cdx) -= *(matrix + rdx * colSize + cdx) * constantC;
+					*(identity + rdx2 * colSize + cdx) -= *(identity + rdx * colSize + cdx) * constantC;
+					if (!(fabs(*(matrix + rdx2 * colSize + cdx)) <= FLT_EPSILON) && (detect == false))
+						lookup[rdx2] = cdx, detect = true;
+				}
+				if (detect == false)
+					lookup[rdx2] = colSize;
+			}
+		}
+	}
+	for (int rdx = 0; rdx < rowSize; rdx++)
+	{
+		for (int rdx2 = rdx + 1; rdx2 < rowSize; rdx2++)
+		{
+			if (lookup[rdx] > lookup[rdx2])
+			{
+				determinant *= -1;
+				for (int cdx = 0; cdx < colSize; cdx++)
+				{
+					double tmpValue = *(matrix + rdx * colSize + cdx);
+					*(matrix + rdx * colSize + cdx) = *(matrix + rdx2 * colSize + cdx);
+					*(matrix + rdx2 * colSize + cdx) = tmpValue;
+
+					double tmpValue2 = *(identity + rdx * colSize + cdx);
+					*(identity + rdx * colSize + cdx) = *(identity + rdx2 * colSize + cdx);
+					*(identity + rdx2 * colSize + cdx) = tmpValue;
+				}
+				int tmp = lookup[rdx];
+				lookup[rdx] = lookup[rdx2];
+				lookup[rdx2] = tmp;
+			}
+		}
+	}
+	//printf("\n pivot information\n");
+	int pivotCnt = 0;
+	for (int rdx = 0; rdx < rowSize; rdx++)
+	{
+		if (lookup[rdx] != colSize)
+		{
+			double value = *(matrix + rdx * colSize + lookup[rdx]);
+			//printf("( %d, %d ): %5.2lf\n", rdx + 1, lookup[rdx] + 1, value);
+			pivotCnt++;
+			determinant *= value;
+		}
+		else
+			determinant = 0;
+	}
+
+	//printf("pivotCnt = %d\n", pivotCnt);
+	//printf("determinant: %5.2lf\n", determinant);
+
+	if (rowSize == colSize && rowSize == pivotCnt)
+	{
+		printf("\n\ninverse of matrix x\n");
+		//printf("역행렬은 다음과 같습니다.\n");
+		for (int rdx = 0; rdx < rowSize; rdx++)
+		{
+			for (int cdx = 0; cdx < colSize; cdx++)
+			{
+				printf("%6.3lf\t", *(identity + rdx * colSize + cdx));
+			}
+			printf("\n");
+		}
+		return identity;
+	}
+	else
+		printf("matrix is not invertible.\n"), exit(1);
+}
+
+void productM(double matrix1[], double matrix2[], double matrix3[], int rowSize1, int colSize1, int rowSize2, int colSize2){
+	int i,j,k;
+	for(i=0; i<rowSize1; i++){
+		for(j=0; j<colSize2; j++){
+			for(k=0; k<colSize1; k++){
+				matrix3[i*colSize2 + j] += matrix1[i*colSize1 + k] * matrix2[k*colSize2 + j];
+			}
+		}
+	}
+}
+
+void main(){
+	int k,n,i,j,*pivot;
+	double *x,*y,*array,*matrixx,*matrixy,*xinverse,*beta, sse=0, meany=0, sst=0, co, tmp;
+	FILE *f;
+	char fname [] = "point.txt";
+
+	if((f=fopen(fname,"r"))==NULL)
+	{
+		printf("no file\n");
+		exit(1);
+	}
+
+	fscanf(f,"%d",&n);
+	x=(double*)malloc(sizeof(double)*n);
+	y=(double*)malloc(sizeof(double)*n);
+	for(i=0;i<n;i++) fscanf(f,"%lf %lf",&x[i],&y[i]);
+
+	//x,y 출력
+	printf("x y 출력\n");
+	for(i=0;i<n;i++) printf("%5.2lf %5.2lf \n",x[i],y[i]);
+	printf("\n\n");
+	
+	//차수입력후 매트릭스 x 생성 & 출력
+	printf("차수 --> ");
+	scanf("%d",&k);
+	matrixx=(double*)malloc(sizeof(double)*(k+1)*(k+1));
+	matrixy=(double*)calloc((k+1),sizeof(double));
+	beta=(double*)calloc((k+1),sizeof(double));
+	array=(double*)calloc((k*2+1),sizeof(double));
+	array[0]=(double)n;
+	for(j=0;j<n;j++){
+		for(i=1;i<(k*2+1);i++){
+		array[i]+=pow(x[j],i);}
+	}
+
+	input(matrixx, array, k);
+	printf("\n\nmatrix x\n");
+	for(i=0; i<k+1; i++){
+		for(j=0; j<k+1; j++){
+			printf("%.2f\t",matrixx[i*(k+1) + j]);
+		}printf("\n");
+		//tmp++;
+	}
+	for(i=0;i<n;i++){
+		for(j=0;j<k+1;j++){
+			matrixy[j]+=pow(x[i],j)*y[i];}
+	}
+
+	printf("\n\nmatrix y\n");
+	for(i=0;i<k+1;i++) printf("%5.2lf\n",matrixy[i]);
+	pivot=getpivot(matrixx,k+1,k+1);
+
+	xinverse=inverse(matrixx,k+1,k+1,pivot);
+	//printf("xinverse\n\n");
+	productM(xinverse,matrixy,beta,k+1,k+1,k+1,1);
+	printf("\n\nbeta\n");
+	for(i=0;i<k+1;i++) printf("%5.4lf\n",beta[i]);
+
+	for(i=0;i<n;i++){
+		tmp=y[i];
+		for(j=0;j<k+1;j++){
+			tmp-=beta[j]*pow(x[i],j);}
+		sse+=pow(tmp,2);}
+	printf("\n\nsse\n");
+	printf("%5.2lf \n",sse);
+	for(i=0;i<n;i++){
+		meany+=y[i];}
+	meany/=n;
+
+	for(i=0;i<n;i++){
+		tmp=y[i];
+		tmp-=meany;
+		sst+=pow(tmp,2);
+	}
+
+
+	co=sqrt(1-(sse/sst));
+
+	printf("\n\n상관계수\n");
+	printf("%5.2lf \n",co);
+
+}
+
+
+

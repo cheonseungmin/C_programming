@@ -1,0 +1,289 @@
+#include<stdio.h>
+#include<stdlib.h>
+#include<math.h>
+#include<time.h>
+
+double Binary_sigmoid_fuction(double in)
+{
+	return 1/(1+exp(-in));
+}
+
+main()
+{
+	FILE *in;
+	char filename[50];
+	int i,j,k;
+	int x_num, p, m, pattern;
+	int reverse;
+	unsigned long seed;
+	double α;
+	double **x, **target;
+	double *z, *y;
+	double z_in, y_in;
+	double **w, **v;
+	double E, e, E_max;
+	double *δk, *δj, δ_inj;
+	int select;
+	double *test_x, test_error;
+	int test_pattern, test_count;
+	int sum;
+
+	printf("학습시킬 파일 네임 : ");scanf("%s",filename);
+	in = fopen(filename,"r");
+	
+	printf("input의 개수	   : ");scanf("%d",&x_num);
+	printf("output의 개수	   : ");scanf("%d",&m);
+	printf("pattern의 개수	   : ");scanf("%d",&pattern);	
+	printf("학습률 α	   : ");scanf("%lf",&α);
+	printf("히든 p의 개수	   : ");scanf("%d",&p);
+
+	//x[pattern][x_num+1],target[pattern][m] 동적할당
+	x = (double**)malloc(sizeof(double)*pattern);
+	target = (double**)malloc(sizeof(double)*pattern);
+	for(i=0;i<pattern;i++)
+	{
+		x[i] = (double*)malloc(sizeof(double)*(x_num+1));
+		target[i] = (double*)malloc(sizeof(double)*m);
+	}
+	//y[m],δk[m] 동적할당
+	y = (double*)malloc(sizeof(double)*m);
+	δk = (double*)malloc(sizeof(double)*m);
+
+	//printf("패턴 값과 타겟 값을 입력해주세요.\n");
+	for(i=0;i<pattern;i++)
+	{
+		//x값 입력, 0번방 bias 1로 초기화
+		x[i][0]=1;
+		for(j=1;j<=x_num;j++)
+		{
+			fscanf(in,"%lf",&x[i][j]);
+		}
+		
+		//target 값 입력
+		for(j=0;j<m;j++)
+		{
+			fscanf(in,"%lf",&target[i][j]);
+		}
+	}
+	fclose(in);
+
+	//δj[p+1],z[p+1] 동적할당
+	δj = (double*)malloc(sizeof(double)*(p+1));
+	z = (double*)malloc(sizeof(double)*(p+1));
+
+	//v[x_num+1][p] 동적할당
+	v = (double**)malloc(sizeof(double)*(x_num+1));
+	for(i=0;i<=x_num;i++)
+	{
+		v[i] = (double*)malloc(sizeof(double)*p);
+	}
+
+	//v 행렬에 입력
+	seed = time(NULL);
+	srand(seed);
+
+	for(i=0;i<=x_num;i++)
+	{
+		for(j=0;j<p;j++)
+		{
+			v[i][j] = (double)rand()/RAND_MAX-0.5;
+		}
+	}
+
+	//w[p+1][m] 동적 할당 및 행렬 입력
+	w = (double**)malloc(sizeof(double)*(p+1));
+	for(i=0;i<=p;i++)
+	{
+		w[i] = (double*)malloc(sizeof(double)*m);
+	}
+
+	for(i=0;i<=p;i++)
+	{
+		for(j=0;j<m;j++)
+		{
+			w[i][j] = (double)rand()/RAND_MAX-0.5;
+		}
+	}
+
+	printf("Error Max : ");scanf("%lf",&E_max);
+
+	do
+	{
+		E=0;
+		for(i=0;i<pattern;i++)
+		{
+			//히든층 계산
+			z[0]=1;
+			for(j=1;j<=p;j++)
+			{
+				for(k=0, z_in=0;k<=x_num;k++)
+				{
+					z_in+=v[k][j-1]*x[i][k];
+				}
+				z[j]=Binary_sigmoid_fuction(z_in);
+			}
+			//output 층계산
+			for(j=0;j<m;j++)
+			{
+				for(k=0, y_in=0;k<=p;k++)
+				{
+					y_in+=w[k][j]*z[k];
+				}
+				y[j]=Binary_sigmoid_fuction(y_in);
+			}
+			//에러 계산
+			for(j=0,e=0;j<m;j++)
+			{
+				e+=(target[i][j]-y[j])*(target[i][j]-y[j])/2;
+			}
+			E += e;
+			//δk,δj 값들 계산
+			for(k=0;k<m;k++)
+			{
+				δk[k] = (target[i][k]-y[k])*y[k]*(1-y[k]);
+			}
+
+			for(j=1;j<=p;j++)
+			{
+				for(k=0,δ_inj=0;k<m;k++)
+				{
+					δ_inj+=δk[k]*w[j][k];
+				}
+				δj[j-1]=δ_inj*z[j]*(1-z[j]);
+			}
+			//w,v 가중치 변화
+			for(j=0;j<=p;j++)
+			{
+				for(k=0;k<m;k++)
+				{
+					w[j][k]+=α*δk[k]*z[j];
+				}
+			}
+
+			for(j=0;j<=x_num;j++)
+			{
+				for(k=0;k<p;k++)
+				{
+					v[j][k]+=α*δj[k]*x[i][j];
+				}
+			}
+		}
+		printf("오차 : %lf\n",E);
+	}while(E>E_max);
+	
+	free(δk);free(δj);
+
+	printf("학습끝\n");
+
+	//테스트
+	do{
+		test_x = (double*)malloc(sizeof(double)*(x_num+1));
+		test_x[0]=1;
+		printf("테스트 할 값 입력 : \n");//테스트 값 입력
+		for(i=1;i<=x_num;i++)
+		{
+			scanf("%lf",&test_x[i]);
+		}
+		//히든층 계산
+		z[0]=1;
+		for(j=1;j<=p;j++)
+		{
+			for(k=0, z_in=0;k<=x_num;k++)
+			{
+				z_in+=v[k][j-1]*test_x[k];
+			}
+			z[j]=Binary_sigmoid_fuction(z_in);
+		}
+		//output 계산
+		for(j=0;j<m;j++)
+		{
+			for(k=0, y_in=0;k<=p;k++)
+			{
+				y_in+=w[k][j]*z[k];
+			}
+			y[j]=Binary_sigmoid_fuction(y_in);
+		}
+
+		printf("테스트 결과 값\n"); //결과 output 출력
+		for(i=0;i<m;i++)
+		{
+			printf("%lf\n",y[i]);
+		}
+		//원래 입력되있던 타겟과 최소 에러값 및 최소에러 pattern값 판단
+		for(i=0,E=100;i<pattern;i++)
+		{
+			for(j=0,e=0;j<m;j++)
+			{
+				e+=(target[i][j]-y[j])*(target[i][j]-y[j])/2;
+			}
+			if(E>e)
+			{
+				E=e;
+				test_pattern=i;
+				test_error=e;
+			}
+		}
+		//최소 에러 pattern에 해당하는 값과 동일한 타겟을 갖는 값 출력
+		for(i=0;i<pattern;i++)
+		{
+			for(j=0,test_count=0;j<m;j++)
+			{
+				if(target[i][j]==target[test_pattern][j])
+					test_count++;
+			}
+			if(test_count==m)
+			{
+				printf("\n최소 에러 %lf에 해당하는 pattern의 target을 갖는 값\n",test_error);
+				for(j=0;j<5;j++)
+				{
+					for(k=0;k<5;k++)
+					{
+						printf("%0.lf ",x[i][j*5+k+1]);
+					}
+					printf("\n");
+				}
+				printf("\n");
+			}
+		}
+		i=0;
+		sum=0;
+		j=8;
+		do{
+			sum+=j*(int)target[test_pattern][i++];
+			j/=2;
+		}while(i<4);
+
+		switch(sum)
+		{
+			case 0 :
+				printf("입력된 문자는 ㄱ 입니다.\n");
+				break;
+			case 8 :
+				printf("입력된 문자는 ㄴ 입니다.\n");
+				break;
+
+		}
+
+		select=2;
+		printf("테스트\n추가진행 --> 1 입력\n그만 --> 2\n");
+		printf("입력 : ");scanf("%d",&select);
+		free(test_x);
+	}while(select==1);
+	
+	
+
+	//행렬동적할당 해제
+	for(i=0;i<pattern;i++)
+	{
+		free(x[i]);
+		free(target[i]);
+	}
+	free(x);free(target);
+	free(z);free(y);
+	for(i=0;i<=x_num;i++)
+		free(v[i]);
+	free(v);
+	for(i=0;i<=p;i++)
+		free(w[i]);
+	free(w);
+}

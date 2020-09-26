@@ -1,0 +1,100 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#define MAX(X,Y) X>=Y? X:Y
+#define PIE 3.141592
+#define POINTCNT 10
+int main(){
+	int rdx,cdx,i=0,j=0,type,n, sizeR, sizeT, *hough, houghIndex, cnt=0, idx ;
+	double *x, *y, intervalT,intervalR, maxX=0, maxY=0, tmp, *sinArray, *cosArray, roh, maxR=0 ,maxT=0, gradient, interceptY;
+	FILE *f;
+
+	printf("theta의 범위를 설정하세요.\n1 : 0 ~ 90\n2 : 0 ~ 180\n");
+	scanf("%d",&type);
+	printf("theta의 interval을 설정하세요. >> ");
+	scanf("%lf",&intervalT);
+	printf("roh의 interval을 설정하세요. >> ");
+	scanf("%lf",&intervalR);
+
+	if( (f = fopen("pointSet.txt","r")) == NULL ) exit(1);
+
+	fscanf(f,"%d",&n);
+
+	x = (double*)malloc(sizeof(double)*10);
+	y = (double*)malloc(sizeof(double)*10);
+	while( !feof(f) ){
+		fscanf(f,"%lf %lf",&x[i], &y[i]);
+		maxX = MAX( maxX, abs(x[i]) );
+		maxY = MAX( maxY, abs(y[i]) );
+		i++;
+	}
+
+
+
+	for(idx = 0; idx < 10; idx++){
+		printf("x: %.2f, \ty: %.2f\n", x[idx],y[idx]);
+	}
+
+
+	if(type == 1) {
+		tmp = 0; 
+		sizeT = 90/intervalT +1;
+	}
+	else {
+		tmp = maxX; 
+		sizeT = 180/intervalT +1;
+	}
+	sizeR = ( (int)(sqrt(maxX*maxX + maxY*maxY) + tmp + .5)/intervalR ) + 1;
+
+	sinArray = (double*)malloc(sizeof(double)*sizeT);
+	cosArray = (double*)malloc(sizeof(double)*sizeT);
+
+	for(i=0; i<sizeT; i++){
+		double degree = i*intervalT;
+		sinArray[i] = sin(degree*PIE/180);
+		cosArray[i] = cos(degree*PIE/180);
+	}
+
+	hough = (int*)calloc(sizeT*sizeR,sizeof(int));
+	for(i=0; i<n; i++){
+		for(rdx=0; rdx < sizeT; rdx++){
+			roh = x[i]*cosArray[rdx] + y[i]*sinArray[rdx];
+			houghIndex = rdx*sizeR + (int) ((roh + tmp + intervalR/2.0) / intervalR);
+			hough[houghIndex]++;
+		}
+	}
+
+	for(rdx=0; rdx<sizeT; rdx++){
+		for(cdx=0; cdx<sizeR; cdx++){
+			if(hough[rdx*sizeR + cdx] >= cnt){
+				cnt = hough[rdx*sizeR + cdx];
+				maxR = cdx * intervalR - tmp;
+				maxT = rdx * intervalT;
+			}
+		}
+	}
+	printf("-------------------------------------\n");
+	for(rdx=0; rdx<sizeT; rdx++){
+		for(cdx=0; cdx<sizeR; cdx++){
+			if(hough[rdx*sizeR + cdx] == cnt){
+				cnt = hough[rdx*sizeR + cdx];
+				maxR = cdx * intervalR - tmp;
+				maxT = rdx * intervalT;
+				printf("Max : Voting: %d\n",cnt);
+				printf("max T : %.2f\nmax R : %.2f\n",maxT,maxR);
+				printf("라인과 수선의 교점 (%.1f , %.1f)\n",maxR*cos(maxT*PIE/180),maxR*sin(maxT*PIE/180));
+				gradient = -1/tan(maxT*PIE/180);
+				interceptY = maxR*cos(maxT*PIE/180) - gradient * maxR*sin(maxT*PIE/180);
+				printf("y = %.2fx + %.2f\n-------------------------------------\n",gradient,interceptY);
+			}
+		}
+	}
+
+	free(x);
+	free(y);
+	free(sinArray);
+	free(cosArray);
+	free(hough);
+
+	return 0;
+}

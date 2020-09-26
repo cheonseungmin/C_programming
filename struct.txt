@@ -1,0 +1,70 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+typedef struct Node{
+   int data;
+   struct Node *next;
+}Node;
+
+
+void main(){
+   int arraya[] = {2, 3, 5, 7, 6};
+   int min = arraya[0], i, minIndex;
+
+   for(i=0; i<5; i++){
+      if(min > arraya[i]) {
+		  min = arraya[i];
+		  minIndex = i;
+	  }
+   }
+
+
+   printf("%d",arraya[0]);
+   
+   Node *head;
+   Node *tmp;
+   Node *cur;
+
+   cur = (Node*)malloc(sizeof(Node));
+   cur->data = min;
+   cur->next = NULL;
+   head = tmp = cur;
+   
+   
+   
+  /* while(i != 5){
+	   if( i == minIndex ) i++;
+
+      cur = (node*)malloc(sizeof(node));
+      cur->data = array[i];
+      cur->next = NULL;
+
+      if(tmp -> next == NULL){
+         tmp->next = cur;
+         tmp = head; 
+         i++;
+      }
+      else if(tmp->data < cur->data && tmp->next->data < cur->data){
+         tmp = tmp->next; 
+		 free(cur);
+      }
+      else if(tmp->data <= cur->data && (tmp->next)->data > cur->data){
+         cur->next = tmp->next;
+         tmp->next = cur;
+		 tmp = head;
+         i++;	 
+      }
+   }
+
+   tmp = head;
+   while(tmp != NULL){
+      printf("%d \n",tmp->data);
+      tmp = tmp->next;
+   }
+
+   while(tmp != NULL){
+      tmp = head->next;
+      free(head);
+      head = tmp;
+   }*/
+}

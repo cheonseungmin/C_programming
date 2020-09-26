@@ -1,0 +1,304 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <float.h>
+
+void transpose(double matrix [], double transMatrix [], int rowSize, int colSize){
+	int i, j;
+	for(i=0; i<rowSize; i++){
+		for(j=0; j<colSize; j++){
+			transMatrix[j*rowSize + i] = matrix[i*colSize + j];
+		}
+	}
+}
+
+void getpivot( double matrix[], int *pivot, int rowSize, int colSize ){
+
+	int i,j;
+	for(i=0; i<rowSize; i++){
+		for(j=0; j<colSize; j++){
+			if(matrix[i*colSize +j] != 0) break;
+		}
+		*(pivot+i) = j;
+	}
+}
+
+int replacement( double matrix[], int *pivot, int rowSize, int colSize, double ide []){
+	int i,j,k;
+	double tmp;
+
+	for(i=0; i<rowSize; i++){
+		for(k=0; k<rowSize; k++){
+			if(i == k) continue;
+			if(*(pivot + i) == colSize) continue;
+
+			if(*(pivot + i) == *(pivot + k)){ tmp = (-matrix[ k*colSize + *(pivot + k)]) / matrix[ i*colSize + *(pivot + i)];
+			for(j=0; j<colSize; j++){
+				matrix[k*colSize + j] += tmp * matrix[i*colSize + j];
+				if(rowSize == colSize) { ide[k*colSize + j] += tmp * ide[i*colSize + j];}
+			}
+			getpivot(matrix,pivot,rowSize,colSize);
+			return 0;
+			}
+		}
+	}
+	return 0;
+}
+
+void interchange( double matrix[], int *pivot, int rowSize, int colSize, double ide[], double *det){
+	int i=0, j, k=0, le=0, flag=0;
+	int tmp2;
+	double tmp1;
+
+	int m,n;
+
+	do{
+		for(i=0; i<rowSize; i++){
+			for(k=i; k<rowSize; k++){//////////// k가 i부터였음,,,
+				if(i == k) continue;
+
+				if(pivot[i] > pivot[k]){
+					for(j=0; j<colSize; j++){
+						tmp1 = matrix[i*colSize + j];
+						matrix[i*colSize + j] = matrix[k*colSize + j];
+						matrix[k*colSize + j] = tmp1;
+					}
+
+					if(rowSize == colSize){
+						for(j=0; j<colSize; j++){
+							tmp1 = ide[i*colSize + j];
+							ide[i*colSize + j] = ide[k*colSize + j];
+							ide[k*colSize + j] = tmp1;
+						}
+						*(det) *= -1;
+					}
+					tmp2 = pivot[i];
+					pivot[i] = pivot[k];
+					pivot[k] = tmp2;	
+
+					k=0;	///////////k=0을 해줘야함				
+				}
+			}
+		}
+	}while(i != rowSize);
+}
+
+void reduce1( double matrix [], int *pivot, int rowSize, int colSize, double ide [], double det){
+	int i, j, k,m,n;
+	double tmp;
+
+	for(i=rowSize-1; i>-1; i--){
+		for(k=i-1; k>-1; k--){
+			if(*(pivot + i) == colSize) break;
+			tmp = (-*(matrix + k*colSize + *(pivot + i)))/ *(matrix + i*colSize + *(pivot + i));
+			for(j=0; j<colSize; j++){
+				*(matrix + k*colSize + j) += *(matrix + i*colSize + j) * tmp;
+				if(det != 0) { *(ide + k*colSize + j) += *(ide + i*colSize + j) * tmp; }
+			}
+		}
+	}
+}
+
+void reduce2( double matrix [], int *pivot, int rowSize, int colSize, double ide [], double det){
+	int i,j,m,n;
+	double tmp;
+
+	for(i=0; i<rowSize; i++){ 
+		if(*(pivot + i) == colSize) {continue;} 
+		tmp = *(matrix + i*colSize + *(pivot + i)); 
+		for(j=0; j<colSize; j++){
+			*(matrix + i*colSize + j) /= tmp;
+			if(det != 0) { *(ide + i*colSize + j) /= tmp; }
+		}
+	}
+}
+
+void inverse(double matrix1 [], double ide [], int rowSize, int colSize, int pivot []){
+	int i,j,k,flag=0;
+
+	double detEf=0 ,det=0;
+
+	if( (rowSize == colSize) ) {   
+		det = 1;
+		detEf = 1; 
+	}
+	getpivot(matrix1,pivot,rowSize,colSize);
+
+	do{
+		flag = 0;
+		replacement(matrix1,pivot,rowSize,colSize,ide);
+
+		for(i=0; i<rowSize; i++){
+			for(k=i; k<rowSize; k++){
+				if(i == k) continue;
+				if( (*(pivot + i) == *(pivot + k)) && (*(pivot + i) != colSize)) {flag = 1; break;}
+			}      
+		}
+	}while(flag);
+
+	interchange(matrix1, pivot, rowSize, colSize, ide, &det);
+	getpivot(matrix1,pivot,rowSize,colSize);
+
+
+	for(i=0; i<rowSize; i++){
+		if(rowSize == colSize){ detEf *= *(matrix1+ i*colSize + *(pivot + i));}
+	}
+
+
+	if( abs((detEf)) <= FLT_EPSILON ){detEf=0;}
+
+	reduce1(matrix1, pivot, rowSize, colSize, ide, detEf);
+	reduce2(matrix1, pivot, rowSize, colSize, ide, detEf);
+
+	if(detEf != 0){
+	}
+	else{printf("역행렬이 존재하지 않습니다.\n"); exit(0); }
+}
+
+
+void input(double matrix [], double array [], int k){
+	int i, j, tmp =0;
+	for(i=0; i<k+1; i++){
+		for(j=0; j<k+1; j++){
+			matrix[i*(k+1) + j] = array[j + tmp];
+		}
+		tmp++;
+	}
+
+	tmp=0;
+}
+
+void makeIde(double ide[],int size){
+	int i,j;
+	for(i=0; i<size; i++){
+		for(j=0; j<size; j++){
+			if(i==j){*(ide + i*size + j) = 1;}
+			else {*(ide + i*size + j) = 0;}
+		}
+	}
+}
+
+void productM(double matrix1[], double matrix2[], double matrix3[], int rowSize1, int colSize1, int rowSize2, int colSize2){
+	int i,j,k;
+	
+	for(i=0; i<rowSize1; i++){
+		for(j=0; j<colSize2; j++){
+			matrix3[i*colSize2 + j] = 0;
+		}
+	}
+
+	for(i=0; i<rowSize1; i++){
+		for(j=0; j<colSize2; j++){
+			for(k=0; k<colSize1; k++){
+				matrix3[i*colSize2 + j] += matrix1[i*colSize1 + k] * matrix2[k*colSize2 + j];
+			}
+		}
+	}
+}
+
+int main(){
+	int n, i=0, j, k, m, cnt=0, *pivot;
+	double *data, *matrixX, *matrixY, *matrixXTX, *transMatrixX, *ide, *beta, *matrixXTY;
+	FILE *f;
+
+	if((f=fopen("points2.txt","r")) == NULL) exit(0);
+
+	fscanf(f,"%d",&k);
+
+	fscanf(f,"%d",&n);
+	data = (double*)malloc(sizeof(double)*n*(k+1));
+
+	while( !feof(f) ){
+		fscanf(f,"%lf",&data[i++]);
+	}
+
+	printf("points\n");
+	for(i=0; i<n*(k+1); i++){
+		printf("%.2f\t",data[i]);
+		cnt++;
+		if(cnt == k+1) {
+			printf("\n"); 
+			cnt = 0;
+		}
+	}
+
+	printf("\n"); printf("\n"); printf("\n"); 
+
+	matrixX = (double*)malloc(sizeof(double)*(k+1)*n);
+	matrixY = (double*)malloc(sizeof(double)*n);
+	for(i=0; i<n; i++){
+		matrixX[i*(k+1)] = 1;
+	}
+
+	matrixX[1] = data[0];
+	j=0; 
+	i=2; 
+	cnt=1;
+	for(m=1; m<n*(k+1); m++){
+		if(cnt == k) {
+			matrixY[j++] = data[m];
+			cnt = 0;
+		}
+		else {
+			matrixX[i++] = data[m];
+			cnt++;
+			if(cnt == k) i++;
+		}
+	}
+
+	printf("matrixX\n");
+	for(i=0; i<n; i++){
+		for(j=0; j<(k+1); j++){
+			printf("%.2f\t",matrixX[i*(k+1) + j]);
+		}printf("\n");
+	}
+
+	printf("\n");printf("\n");printf("\n");
+
+	printf("matrixY\n");
+	for(i=0; i<n; i++){
+		printf("%.2f\n",matrixY[i]);
+	}
+
+	transMatrixX = (double*)malloc(sizeof(double)*(k+1)*n);
+	transpose(matrixX, transMatrixX, n, k+1);
+
+	matrixXTX = (double*)malloc(sizeof(double)*(k+1)*(k+1));
+	matrixXTY = (double*)malloc(sizeof(double)*(k+1));
+
+	productM(transMatrixX, matrixX, matrixXTX, k+1, n, n, k+1);
+	printf("matrixXTX\n");
+	for(i=0; i<k+1; i++){
+		for(j=0; j<k+1; j++){
+			printf("%.2f\t",matrixXTX[i*(k+1) + j]);
+		}printf("\n");
+	}
+	printf("\n");printf("\n");printf("\n");
+
+
+	productM(transMatrixX, matrixY, matrixXTY, k+1, n, n, 1);
+	printf("matrixXTY\n");
+	for(i=0; i<k+1; i++){
+			printf("%.2f\n",matrixXTY[i]);
+	}
+	printf("\n");printf("\n");printf("\n");
+
+
+
+
+	ide = (double*)malloc(sizeof(double)*(k+1)*(k+1));
+	makeIde(ide,k+1);
+	pivot = (int*)malloc(sizeof(int)*(k+1));
+	inverse(matrixXTX, ide, k+1, k+1, pivot);
+
+	beta = (double*)malloc(sizeof(double)*(k+1));
+	productM(ide, matrixXTY, beta, k+1, k+1, k+1, 1);
+
+	printf("BETA\n");
+	for(i=0; i<k+1; i++){
+		printf("%.2f\n",beta[i]);
+	}
+	printf("\n");printf("\n");printf("\n");
+
+	return 0;
+}

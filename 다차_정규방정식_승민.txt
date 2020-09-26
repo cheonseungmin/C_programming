@@ -1,0 +1,274 @@
+#include <stdio.h>
+#include <math.h>
+#include <float.h>
+#include <stdlib.h>
+
+
+void transpose(double matrix [], double transMatrix [], int rowSize, int colSize){
+	int i, j;
+	for(i=0; i<rowSize; i++){
+		for(j=0; j<colSize; j++){
+			transMatrix[j*rowSize + i] = matrix[i*colSize + j];
+		}
+	}
+}
+
+void getpivot( double matrix[], int *pivot, int rowSize, int colSize ){
+
+	int i,j;
+	for(i=0; i<rowSize; i++){
+		for(j=0; j<colSize; j++){
+			if(matrix[i*colSize +j] != 0) break;
+		}
+		*(pivot+i) = j;
+	}
+}
+
+int replacement( double matrix[], int *pivot, int rowSize, int colSize, double ide []){
+	int i,j,k;
+	double tmp;
+
+	for(i=0; i<rowSize; i++){
+		for(k=0; k<rowSize; k++){
+			if(i == k) continue;
+			if(*(pivot + i) == colSize) continue;
+
+			if(*(pivot + i) == *(pivot + k)){ tmp = (-matrix[ k*colSize + *(pivot + k)]) / matrix[ i*colSize + *(pivot + i)];
+			for(j=0; j<colSize; j++){
+				matrix[k*colSize + j] += tmp * matrix[i*colSize + j];
+				if(rowSize == colSize) { ide[k*colSize + j] += tmp * ide[i*colSize + j];}
+			}
+			getpivot(matrix,pivot,rowSize,colSize);
+			return 0;
+			}
+		}
+	}
+	return 0;
+}
+
+void interchange( double matrix[], int *pivot, int rowSize, int colSize, double ide[], double *det){
+	int i=0, j, k=0, le=0, flag=0;
+	int tmp2;
+	double tmp1;
+
+	int m,n;
+
+	do{
+		for(i=0; i<rowSize; i++){
+			for(k=i; k<rowSize; k++){//////////// k가 i부터였음,,,
+				if(i == k) continue;
+
+				if(pivot[i] > pivot[k]){
+					for(j=0; j<colSize; j++){
+						tmp1 = matrix[i*colSize + j];
+						matrix[i*colSize + j] = matrix[k*colSize + j];
+						matrix[k*colSize + j] = tmp1;
+					}
+
+					if(rowSize == colSize){
+						for(j=0; j<colSize; j++){
+							tmp1 = ide[i*colSize + j];
+							ide[i*colSize + j] = ide[k*colSize + j];
+							ide[k*colSize + j] = tmp1;
+						}
+						*(det) *= -1;
+					}
+					tmp2 = pivot[i];
+					pivot[i] = pivot[k];
+					pivot[k] = tmp2;	
+
+					k=0;	///////////k=0을 해줘야함				
+				}
+			}
+		}
+	}while(i != rowSize);
+}
+
+void reduce1( double matrix [], int *pivot, int rowSize, int colSize, double ide [], double det){
+	int i, j, k,m,n;
+	double tmp;
+
+	for(i=rowSize-1; i>-1; i--){
+		for(k=i-1; k>-1; k--){
+			if(*(pivot + i) == colSize) break;
+			tmp = (-*(matrix + k*colSize + *(pivot + i)))/ *(matrix + i*colSize + *(pivot + i));
+			for(j=0; j<colSize; j++){
+				*(matrix + k*colSize + j) += *(matrix + i*colSize + j) * tmp;
+				if(det != 0) { *(ide + k*colSize + j) += *(ide + i*colSize + j) * tmp; }
+			}
+		}
+	}
+}
+
+void reduce2( double matrix [], int *pivot, int rowSize, int colSize, double ide [], double det){
+	int i,j,m,n;
+	double tmp;
+
+	for(i=0; i<rowSize; i++){ 
+		if(*(pivot + i) == colSize) {continue;} 
+		tmp = *(matrix + i*colSize + *(pivot + i)); 
+		for(j=0; j<colSize; j++){
+			*(matrix + i*colSize + j) /= tmp;
+			if(det != 0) { *(ide + i*colSize + j) /= tmp; }
+		}
+	}
+}
+
+void inverse(double matrix1 [], double ide [], int rowSize, int colSize, int pivot []){
+	int i,j,k,flag=0;
+
+	double detEf=0 ,det=0;
+
+	if( (rowSize == colSize) ) {   
+		det = 1;
+		detEf = 1; 
+	}
+	getpivot(matrix1,pivot,rowSize,colSize);
+
+	do{
+		flag = 0;
+		replacement(matrix1,pivot,rowSize,colSize,ide);
+
+		for(i=0; i<rowSize; i++){
+			for(k=i; k<rowSize; k++){
+				if(i == k) continue;
+				if( (*(pivot + i) == *(pivot + k)) && (*(pivot + i) != colSize)) {flag = 1; break;}
+			}      
+		}
+	}while(flag);
+
+	interchange(matrix1, pivot, rowSize, colSize, ide, &det);
+	getpivot(matrix1,pivot,rowSize,colSize);
+
+
+	for(i=0; i<rowSize; i++){
+		if(rowSize == colSize){ detEf *= *(matrix1+ i*colSize + *(pivot + i));}
+	}
+
+
+	if( abs((detEf)) <= FLT_EPSILON ){detEf=0;}
+
+	reduce1(matrix1, pivot, rowSize, colSize, ide, detEf);
+	reduce2(matrix1, pivot, rowSize, colSize, ide, detEf);
+
+	if(detEf != 0){
+	}
+	else{printf("역행렬이 존재하지 않습니다.\n"); }
+}
+
+
+void input(double matrix [], double array [], int k){
+	int i, j, tmp =0;
+	for(i=0; i<k+1; i++){
+		for(j=0; j<k+1; j++){
+			matrix[i*(k+1) + j] = array[j + tmp];
+		}
+		tmp++;
+	}
+
+	tmp=0;
+}
+
+void makeIde(double ide[],int size){
+	int i,j;
+	for(i=0; i<size; i++){
+		for(j=0; j<size; j++){
+			if(i==j){*(ide + i*size + j) = 1;}
+			else {*(ide + i*size + j) = 0;}
+		}
+	}
+}
+
+void productM(double matrix1[], double matrix2[], double matrix3[], int rowSize1, int colSize1, int rowSize2, int colSize2){
+	int i,j,k;
+	for(i=0; i<rowSize1; i++){
+		for(j=0; j<colSize2; j++){
+			for(k=0; k<colSize1; k++){
+				matrix3[i*colSize2 + j] += matrix1[i*colSize1 + k] * matrix2[k*colSize2 + j];
+			}
+		}
+	}
+}
+
+
+
+void main(){
+	int k,n,i,j;
+	int *pivot;
+	double *x,*y,*array,*matrixx,*matrixy, *ide, *beta, sse=0, tmp, meany=0, sst=0, co;
+	FILE *f;
+	char fname [] = "points.txt";
+
+	if((f=fopen(fname,"r"))==NULL)
+	{
+		printf("no file\n");
+		exit(1);
+	}
+
+	fscanf(f,"%d",&n);
+	x=(double*)malloc(sizeof(double)*n);
+	y=(double*)malloc(sizeof(double)*n);
+	for(i=0;i<n;i++) fscanf(f,"%lf %lf",&x[i],&y[i]);
+
+	//x,y 출력
+	printf("x y 출력\n");
+	for(i=0;i<n;i++) printf("%5.2lf %5.2lf \n",x[i],y[i]);
+	printf("\n\n");
+
+	//차수입력후 매트릭스 x 생성 & 출력
+	printf("차수 --> ");
+	scanf("%d",&k);
+	matrixx=(double*)malloc(sizeof(double)*(k+1)*(k+1));
+	matrixy=(double*)calloc((k+1),sizeof(double));
+	beta = (double*)calloc(k+1,sizeof(double));
+	ide = (double*)malloc(sizeof(double)*(k+1)*(k+1));
+	pivot = (int*)malloc(sizeof(int)*(k+1));
+	array=(double*)calloc((k*2+1),sizeof(double));
+	array[0]=(double)n;
+	for(j=0;j<n;j++){
+		for(i=1;i<(k*2+1);i++){
+			array[i]+=pow(x[j],i);}
+	}
+
+	input(matrixx, array, k);
+
+	for(i=0;i<n;i++){
+		for(j=0;j<k+1;j++){
+			matrixy[j]+=pow(x[i],j)*y[i];}
+	}
+
+	makeIde(ide,k+1);
+	inverse(matrixx, ide, k+1, k+1, pivot);
+
+	productM(ide, matrixy, beta, k+1, k+1, k+1, 1);
+
+	for(i=0; i<k+1; i++){
+		printf("%.4f\n",beta[i]);
+	}
+
+	for(i=0; i<n; i++){ 
+		tmp = y[i];
+		for(j=0; j<k; j++){
+			tmp -= beta[j]*pow(x[i],j);
+		} 
+		tmp *= tmp;
+		sse += tmp;
+	}
+
+	printf("%.2f",sse);
+
+	for(i=0;i<n;i++) meany+=y[i];
+	meany/=n;
+
+	for(i=0;i<n;i++){
+		tmp=y[i];
+		tmp-=meany;
+		sst+=pow(tmp,2);
+	}
+
+
+	co=sqrt(1-(sse/sst));
+	printf("\n\n상관계수\n");
+	printf("%5.2lf \n",co);
+
+}
